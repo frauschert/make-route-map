@@ -12,17 +12,38 @@ export type RoutesType = {
   };
 };
 
+type ParamKeys<R extends RoutesType, K extends keyof R> = keyof R[K]['params'];
+type SearchKeys<R extends RoutesType, K extends keyof R> = keyof R[K]['search'];
+
+type ReturnParams<R extends RoutesType, K extends keyof R> = {
+  params: { [PK in ParamKeys<R, K>]: string | number };
+};
+
+type ReturnSearch<R extends RoutesType, K extends keyof R> = {
+  search?: { [PK in SearchKeys<R, K>]: string | number };
+};
+
 export type RoutesReturn<R extends RoutesType> = {
-  [K in keyof R]: (params?: {
-    params?: { [PK in keyof R[K]['params']]: string | number };
-    search?: { [PK in keyof R[K]['search']]?: string | number };
-  }) => string;
+  [K in keyof R]: [ParamKeys<R, K>, SearchKeys<R, K>] extends [
+    undefined,
+    undefined
+  ]
+    ? () => string
+    : [ParamKeys<R, K>, SearchKeys<R, K>] extends [any, undefined]
+    ? (params: ReturnParams<R, K>) => string
+    : [ParamKeys<R, K>, SearchKeys<R, K>] extends [undefined, any]
+    ? (params?: ReturnSearch<R, K>) => string
+    : [ParamKeys<R, K>, SearchKeys<R, K>] extends [any, any]
+    ? (params: ReturnParams<R, K> & ReturnSearch<R, K>) => string
+    : never;
 };
 
 export type UseNavigateReturn<R extends RoutesType> = {
-  [K in keyof RoutesReturn<R>]: (
-    params?: Parameters<RoutesReturn<R>[K]>[0]
-  ) => void;
+  [K in keyof RoutesReturn<R>]: Parameters<
+    RoutesReturn<R>[K]
+  >[0] extends undefined
+    ? () => void
+    : (params: Parameters<RoutesReturn<R>[K]>[0]) => void;
 };
 
 export interface MakeRouteMapOptions {
@@ -42,33 +63,33 @@ export const makeRouteMap = <R extends RoutesType>(
   routes: R,
   options?: MakeRouteMapOptions
 ): RoutesReturn<R> => {
-  let obj: Partial<RoutesReturn<R>> = {};
+  let obj: Record<string, unknown> = {};
   Object.entries(routes).forEach(([_key, { path }]) => {
-    const key: keyof R = _key;
+    const key = _key;
 
-    const func: RoutesReturn<R>[typeof key] = (routeInfo?: {
+    const func = (params?: {
       params?: {
         [paramName: string]: string | number;
       };
       search?: {
-        [paramName: string]: string | number | undefined;
+        [paramName: string]: string | number;
       };
     }) => {
       let newPath = String(path);
-      // If params, add the new path to the object
-      if (routeInfo?.params) {
-        Object.entries(routeInfo.params).forEach(([paramName, value]) => {
+
+      if (params?.params) {
+        Object.entries(params.params).forEach(([paramName, value]) => {
           newPath = newPath.replace(
             options?.paramMatcher?.(paramName) || new RegExp(':' + paramName),
             String(value)
           );
         });
       }
-      if (!routeInfo?.search) {
+      if (!params?.search) {
         return newPath;
       } else {
         return `${newPath}?${new URLSearchParams(
-          routeInfo.search as any
+          params.search as any
         ).toString()}`;
       }
     };
@@ -86,10 +107,10 @@ export const makeNavigate = <R extends RoutesType>(
   routeMap: RoutesReturn<R>,
   goToRoute: (route: string) => void
 ): UseNavigateReturn<R> => {
-  const toReturn: Partial<UseNavigateReturn<R>> = {};
+  const toReturn: Record<string, unknown> = {};
   Object.keys(routeMap).forEach(_routeName => {
-    const routeName: keyof UseNavigateReturn<R> = _routeName;
-    toReturn[routeName] = (params: any) => {
+    const routeName = _routeName;
+    toReturn[routeName] = (params?: any) => {
       goToRoute(routeMap[routeName](params));
     };
   });

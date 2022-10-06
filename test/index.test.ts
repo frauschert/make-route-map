@@ -56,7 +56,10 @@ describe('makeRouteMap', () => {
   it('Should handle search parameters', () => {
     const routeMap = makeRouteMap({
       auth: {
-        path: '/',
+        path: '/:id',
+        params: {
+          id: true,
+        },
         search: {
           redirectPath: true,
         },
@@ -65,11 +68,14 @@ describe('makeRouteMap', () => {
 
     expect(
       routeMap.auth({
+        params: {
+          id: '240',
+        },
         search: {
           redirectPath: '/somewhere-else',
         },
       })
-    ).toEqual(`/?redirectPath=%2Fsomewhere-else`);
+    ).toEqual(`/240?redirectPath=%2Fsomewhere-else`);
   });
 });
 
