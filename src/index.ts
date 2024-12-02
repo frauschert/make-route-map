@@ -108,7 +108,7 @@ export const makeNavigate = <R extends RoutesType>(
   goToRoute: (route: string) => void
 ): UseNavigateReturn<R> => {
   const toReturn: Record<string, unknown> = {};
-  Object.keys(routeMap).forEach(_routeName => {
+  Object.keys(routeMap).forEach((_routeName) => {
     const routeName = _routeName;
     toReturn[routeName] = (params?: any) => {
       goToRoute(routeMap[routeName](params));
